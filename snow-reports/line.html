@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang='en-gb'>
+<head>
+    <title>d3.js line</title>
+
+    <meta charset='utf-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1'/>
+
+    <style type='text/css'>
+        * {box-sizing: border-box;margin:0;padding:0;}
+        svg {
+            height: 400px;
+            width: 100%;
+            /*background: rgb(200,245,235);*/
+        }
+        .chart text {
+          fill: #080808;
+          font: 10px sans-serif;
+          text-anchor: end;
+        }
+        text.upper {
+            text-anchor: start;
+        }
+        a {
+            color: #999;
+        }
+        a:hover,
+        .active {
+            color: #000;
+        }
+        .active {
+            text-decoration: none;
+            cursor: default;
+        }
+    </style>
+</head>
+<body>
+    
+    <svg class='chart'></svg>
+    <p>Sort by <a href='' class='btn-upper'>upper</a> or <a href='' class='btn-lower active'>lower</a> 
+
+<script src='../d3.min.js'></script>
+<script>
+
+    // test data
+    var resorts = [
+        {
+            name: 'Grindelwald',
+            upper: 180,
+            lower: 60
+        },
+        {
+            name: 'Saas Fee',
+            upper: 30,
+            lower: 25
+        },
+        {
+            name: 'Verbier',
+            upper: 50,
+            lower: 75
+        },
+        {
+            name: 'Wengen',
+            upper: 150,
+            lower: 160
+        },
+        {
+            name: 'Zermatt',
+            upper: 130,
+            lower: 70
+        }
+    ];
+    // test data
+    var defaultD = [
+        {
+            upper: 0,
+            lower: 0
+        },
+        {
+            upper: 0,
+            lower: 0
+        },
+        {
+            upper: 0,
+            lower: 0
+        },
+        {
+            upper: 0,
+            lower: 0
+        },
+        {
+            upper: 0,
+            lower: 0
+        }
+    ];
+
+    // global settings
+    var uBars,
+        lBars,
+        uText,
+        lText,
+        barHeight = 20,
+        gutter = 10,
+        height = barHeight * (resorts.length + 2) * 2,
+        width = 300,
+        deepestSnow = d3.max(resorts, function(d) { return d.upper; });
+
+    // set up x and ys
+    var x = d3.scale.ordinal()
+        .rangeRoundBands([0, width], .1);
+
+    var y = d3.scale.linear()
+        .range([height, 0]);
+
+    x.domain(resorts.sort(function(a, b) { return d3.ascending(b.lower, a.lower); }).map(function(d) { return d.name; }));
+    y.domain([0, d3.max(resorts, function(d) { return d.upper; })]);
+
+    // sort data by deepest snow on the lower slopes
+    var x0 = x.domain(resorts.sort(function(a, b) { return d3.ascending(b.lower, a.lower); })
+        .map(function(d) { return d.lower; }))
+        .copy();
+
+    var xAxis = d3.svg.axis()
+        .scale(x)
+        .orient('bottom');
+
+    var chart = d3.select('svg')
+        .attr('height', height)
+        .append('g')
+        .attr('transform', 'translate(' + 40 + ',' + 25 + ')');
+
+    // add gradient definitions
+    var gradient = chart.append("svg:defs");
+    function setGradientDef (id, start, stop) {
+        var gradientDef = gradient.append("svg:linearGradient")
+            .attr("id", id)
+            .attr("x1", "0")
+            .attr("y1", "0")
+            .attr("x2", "0")
+            .attr("y2", "1")
+            .attr("spreadMethod", "pad");
+        gradientDef.append("svg:stop")
+            .attr("offset", "0%")
+            .attr("stop-color", start)
+            .attr("stop-opacity", 0.6);
+        gradientDef.append("svg:stop")
+            .attr("offset", "100%")
+            .attr("stop-color", stop)
+            .attr("stop-opacity", 0.6);
+    }
+    setGradientDef('gradient', '#80FFFF', '#008080')
+    setGradientDef('gradient2', '#C0FFFF', '#80C0C0')
+
+    // line test
+    var xLine = d3.scale.linear().domain([0, resorts.length]).range([0, width]);
+    var dataToUpper = resorts.sort(function(a, b) { return d3.ascending(b.upper, a.upper); })
+    var sortedByLower = resorts.sort(function(a, b) { return d3.ascending(b.lower, a.lower); })
+        // sort data
+        
+
+    var lineFunction = d3.svg.line()
+        .x(function(d, i) { return xLine(i); })
+        .y(function(d) { return y(d.lower); })
+        .interpolate("monotone");
+
+    var lineGraph = chart.append("path")
+        .attr('height', deepestSnow)
+        .attr('width', resorts.length * 52 * 2)
+        .attr('transform', 'translate(' + 13 + ',0)')
+        .attr("d", lineFunction(defaultD))
+        .attr("stroke", "grey")
+        .attr("stroke-width", 2)
+        .attr("fill", "none");
+
+    lineGraph
+        .transition()
+            .delay(500)
+            .attr("d", lineFunction(sortedByLower))
+
+    // function getInitalTransform(d,i) { return "translate(...)";  }
+    // function getFinalTransform(d,i)  { return "translate(...)";  }
+    // lineGraph
+    // .attr("transform", getInitalTransform)
+    //   .transition()
+    //     .ease("linear")
+    //     .attr("transform", getFinalTransform);
+
+    // animate along line
+    // var totalLength = lineGraph.node().getTotalLength();
+
+    // lineGraph
+    //   .attr("stroke-dasharray", totalLength + " " + totalLength)
+    //   .attr("stroke-dashoffset", totalLength)
+    //   .transition()
+    //     .duration(2000)
+    //     .ease("linear")
+    //     .attr("stroke-dashoffset", 0);
+
+    // add resort name to x axis
+    x.domain(resorts.map(function(d) { return d.name; }));
+    chart.append('g')
+      .attr('class', 'x axis')
+      .attr('transform', 'translate(0,' + height + ')')
+      .call(xAxis);
+
+    // select buttons
+    var lower = document.querySelector('.btn-lower'),
+        upper = document.querySelector('.btn-upper');
+
+    // sort by lower slope depth
+    lower.addEventListener('click', function(e) {
+        e.preventDefault();
+        lower.className += ' active';
+        upper.className = upper.className.replace(' active', '');
+
+        var x0 = x.domain(resorts.sort(function(a, b) { return d3.ascending(b.lower, a.lower); })
+        .map(function(d) { return d.lower; }))
+
+        // var dataToLower = resorts.sort(function(a, b) { return d3.ascending(b.lower, a.lower); })
+        lineFunction = d3.svg.line()
+            .x(function(d, i) { return xLine(i); })
+            .y(function(d) { return y(d.lower); })
+            .interpolate("monotone");
+
+        lineGraph
+            .transition()
+                .delay(500)
+                .attr("d", lineFunction(sortedByLower))
+
+        // move resort names
+        x.domain(resorts.map(function(d) { return d.name; }));
+        chart.select('.x.axis')
+            .transition()
+                .delay(function(d, i) { return i * 100; })
+                .duration(1000)
+            .call(xAxis)
+    });
+
+    // sort by upper slope depth
+    upper.addEventListener('click', function(e) {
+        e.preventDefault();
+        // update buttons
+        lower.className = lower.className.replace(' active', '');
+        upper.className += ' active';
+
+        // sort data
+        var x0 = x.domain(resorts.sort(function(a, b) { return d3.ascending(b.upper, a.upper); })
+        .map(function(d) { return d.upper; }))
+        
+        // var dataToUpper = resorts.sort(function(a, b) { return d3.ascending(b.upper, a.upper); })
+        lineFunction = d3.svg.line()
+            .x(function(d, i) { return xLine(i); })
+            .y(function(d) { return y(d.upper); })
+            .interpolate("monotone");
+
+        // lineGraph
+        //     .attr("d", lineFunction(dataToUpper))
+
+        lineGraph
+            .transition()
+                .delay(500)
+                .attr("d", lineFunction(dataToUpper))
+
+        // move resort names
+        x.domain(resorts.map(function(d) { return d.name; }));
+        chart.select('.x.axis')
+            .transition()
+                .delay(function(d, i) { return i * 100; })
+                .duration(1000)
+            .call(xAxis)
+    })
+;
+
+// helpers
+function interpolateNumberByIndex(a, b, i, n) {
+    b -= a = +a;
+    return function(t) {
+        var x = Math.max(Math.min((2*t + (1-i/n)) - 1, 1), 0);
+        return a + b * x;
+    };
+}
+
+var d3_interpolate_number = /[-+]?(?:\d+\.?\d*|\.?\d+)(?:[eE][-+]?\d+)?/g;
+
+// Taken from the d3 source and modified to call interpolateNumberByIndex.
+function myInterpolateString(a, b, index, count, interpolator, easing) {
+  var m, // current match
+      i, // current index
+      j, // current index (for coalescing)
+      s0 = 0, // start index of current string prefix
+      s1 = 0, // end index of current string prefix
+      s = [], // string constants and placeholders
+      q = [], // number interpolators
+      n, // q.length
+      o,
+      l,
+      r;
+ 
+  // Coerce inputs to strings.
+  a = a + "", b = b + "";
+ 
+  // Reset our regular expression!
+  d3_interpolate_number.lastIndex = 0;
+ 
+  // Find all numbers in b.
+  for (i = 0; m = d3_interpolate_number.exec(b); ++i) {
+    if (m.index) s.push(b.substring(s0, s1 = m.index));
+    q.push({i: s.length, x: m[0]});
+    s.push(null);
+    s0 = d3_interpolate_number.lastIndex;
+  }
+  if (s0 < b.length) s.push(b.substring(s0));
+ 
+  if (null == count)
+    count = q.length;
+ 
+  // Find all numbers in a.
+  for (i = 0, n = q.length; (m = d3_interpolate_number.exec(a)) && i < n; ++i) {
+    o = q[i];
+    if (o.x == m[0]) { // The numbers match, so coalesce.
+      if (o.i) {
+        if (s[o.i + 1] == null) { // This match is followed by another number.
+          s[o.i - 1] += o.x;
+          s.splice(o.i, 1);
+          for (j = i + 1; j < n; ++j) q[j].i--;
+        } else { // This match is followed by a string, so coalesce twice.
+          s[o.i - 1] += o.x + s[o.i + 1];
+          s.splice(o.i, 2);
+          for (j = i + 1; j < n; ++j) q[j].i -= 2;
+        }
+      } else {
+          if (s[o.i + 1] == null) { // This match is followed by another number.
+          s[o.i] = o.x;
+        } else { // This match is followed by a string, so coalesce twice.
+          s[o.i] = o.x + s[o.i + 1];
+          s.splice(o.i + 1, 1);
+          for (j = i + 1; j < n; ++j) q[j].i--;
+        }
+      }
+      q.splice(i, 1);
+      n--;
+      i--;
+    } else {
+      // XXX: Modified to use our own number interpolator.
+      l = null == index ? i : index;
+      o.x = interpolator(parseFloat(m[0]), parseFloat(o.x), l, count, easing);
+    }
+  }
+ 
+  // Remove any numbers in b not found in a.
+  while (i < n) {
+    o = q.pop();
+    if (s[o.i + 1] == null) { // This match is followed by another number.
+      s[o.i] = o.x;
+    } else { // This match is followed by a string, so coalesce twice.
+      s[o.i] = o.x + s[o.i + 1];
+      s.splice(o.i + 1, 1);
+    }
+    n--;
+  }
+ 
+  // Special optimization for only a single match.
+  if (s.length === 1) {
+    return s[0] == null
+        ? (o = q[0].x, function(t) { return o(t) + ""; })
+        : function() { return b; };
+  }
+ 
+  // Otherwise, interpolate each of the numbers and rejoin the string.
+  return function(t) {
+    for (i = 0; i < n; ++i) s[(o = q[i]).i] = o.x(t);
+    return s.join("");
+  };
+}
+</script>
+</body>
+</html>
